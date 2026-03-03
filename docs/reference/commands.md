@@ -807,7 +807,7 @@ Install a `.mcpb` Desktop Extension into Claude Desktop.
 
 ```bash
 himalaya-mcp install-ext                              # Auto-find .mcpb in project root
-himalaya-mcp install-ext himalaya-mcp-v1.4.0.mcpb     # Install specific file
+himalaya-mcp install-ext himalaya-mcp-v1.4.1.mcpb     # Install specific file
 ```
 
 **What it does:**
@@ -864,6 +864,7 @@ himalaya-mcp doctor --json   # Machine-readable output
 | Email Connectivity | Account list, folder list, envelope fetch |
 | Claude Desktop Extension | Extension dir, manifest, registry, settings, user_config |
 | Claude Code Plugin | Symlink, plugin.json, marketplace registration |
+| Plugin Cache | Stale cache at `~/.claude/plugins/cache/` |
 | Environment | `HIMALAYA_*` env vars, unresolved template variables |
 
 **Auto-fixable issues (`--fix`):**
@@ -872,11 +873,12 @@ himalaya-mcp doctor --json   # Machine-readable output
 |-------|------------|
 | `himalaya_binary` empty in Desktop settings | Set to `which himalaya` result |
 | Settings file missing | Create default settings (enabled, empty config) |
+| Stale plugin cache | Remove cached metadata from `~/.claude/plugins/cache/` |
 
 **Sample output:**
 
 ```
-himalaya-mcp doctor v1.4.0
+himalaya-mcp doctor v1.4.1
 
   Prerequisites
   ✓ Node.js 22.14.0

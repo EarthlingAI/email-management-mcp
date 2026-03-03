@@ -571,7 +571,7 @@ function checkCodePlugin(): CheckResult[] {
   }
 
   // Marketplace registration
-  const marketplacePath = join(homedir(), ".claude", "local-marketplace", "marketplace.json");
+  const marketplacePath = join(homedir(), ".claude", "local-marketplace", ".claude-plugin", "marketplace.json");
   if (existsSync(marketplacePath)) {
     try {
       const raw = readFileSync(marketplacePath, "utf-8");
@@ -585,6 +585,36 @@ function checkCodePlugin(): CheckResult[] {
     }
   } else {
     results.push({ name: "Marketplace registered", category: "Claude Code Plugin", status: "warn", message: "local-marketplace not found" });
+  }
+
+  return results;
+}
+
+function checkPluginCache(): CheckResult[] {
+  const results: CheckResult[] = [];
+
+  const cachePaths = [
+    join(homedir(), ".claude", "plugins", "cache", "himalaya-mcp"),
+    join(homedir(), ".claude", "plugins", "cache", "local-plugins", "himalaya-mcp"),
+  ];
+
+  for (const cachePath of cachePaths) {
+    if (existsSync(cachePath)) {
+      results.push({
+        name: "Plugin cache", category: "Claude Code Plugin", status: "warn",
+        message: `Stale cache found at ${cachePath}`,
+        fix: {
+          description: `Remove stale cache at ${cachePath}`,
+          auto: () => {
+            rmSync(cachePath, { recursive: true });
+          },
+        },
+      });
+    }
+  }
+
+  if (results.length === 0) {
+    results.push({ name: "Plugin cache", category: "Claude Code Plugin", status: "pass", message: "No stale cache found" });
   }
 
   return results;
@@ -624,6 +654,7 @@ function doctor(flags: { fix: boolean; json: boolean }): void {
     ...checkEmailConnectivity(),
     ...checkDesktopExtension(),
     ...checkCodePlugin(),
+    ...checkPluginCache(),
     ...checkEnvironment(),
   ];
 
