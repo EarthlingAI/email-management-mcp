@@ -7,7 +7,7 @@
 - **Architecture:** TypeScript MCP server + Claude Code plugin
 - **Backend:** himalaya CLI (subprocess with JSON output)
 - **Platforms:** Claude Code (plugin), Claude Desktop/Cowork (MCP server)
-- **Version:** 1.4.0 (released)
+- **Version:** 1.4.1
 - **Current Phase:** All phases complete (19 tools, 4 prompts, 3 resources, 335 tests)
 
 ### What It Does
@@ -61,7 +61,7 @@ himalaya-mcp/
 ├── himalaya-mcp-plugin/
 │   ├── .claude-plugin/
 │   │   └── plugin.json          # Claude Code plugin manifest
-│   ├── skills/                  # Claude Code plugin skills (7: inbox, triage, digest, reply, compose, attachments, help)
+│   ├── skills/                  # Claude Code plugin skills (11: inbox, triage, digest, compose, reply, search, manage, attachments, stats, config, help)
 │   ├── agents/                  # Plugin agents (email-assistant)
 │   └── hooks/                   # Plugin hooks
 ├── .claude-plugin/
