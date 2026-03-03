@@ -864,6 +864,7 @@ himalaya-mcp doctor --json   # Machine-readable output
 | Email Connectivity | Account list, folder list, envelope fetch |
 | Claude Desktop Extension | Extension dir, manifest, registry, settings, user_config |
 | Claude Code Plugin | Symlink, plugin.json, marketplace registration |
+| Plugin Cache | Stale cache at `~/.claude/plugins/cache/` |
 | Environment | `HIMALAYA_*` env vars, unresolved template variables |
 
 **Auto-fixable issues (`--fix`):**
@@ -872,6 +873,7 @@ himalaya-mcp doctor --json   # Machine-readable output
 |-------|------------|
 | `himalaya_binary` empty in Desktop settings | Set to `which himalaya` result |
 | Settings file missing | Create default settings (enabled, empty config) |
+| Stale plugin cache | Remove cached metadata from `~/.claude/plugins/cache/` |
 
 **Sample output:**
 

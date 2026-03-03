@@ -145,14 +145,45 @@ npm run build
 
 ### Skills not loading
 
-If `/email:*` slash commands don't appear after install, the most common cause is a **skills nesting bug** -- the plugin symlink points to a directory that has an extra level of nesting (e.g., `skills/` is inside a subdirectory instead of at the plugin root).
+If `/email:*` slash commands don't appear after install, there are two common causes:
+
+**1. Stale plugin cache**
+
+Claude Code caches plugin metadata. After an upgrade, stale cache can prevent skills from loading.
 
 **Diagnose:**
 
 ```bash
-# Skills must be at the plugin root, not nested
+himalaya-mcp doctor          # Look for "stale cache" warning
+```
+
+**Fix:**
+
+```bash
+himalaya-mcp doctor --fix    # Auto-removes stale cache
+# Then restart Claude Code
+```
+
+Or manually:
+
+```bash
+rm -rf ~/.claude/plugins/cache/himalaya-mcp
+rm -rf ~/.claude/plugins/cache/local-plugins/himalaya-mcp
+```
+
+**2. Skills nesting bug**
+
+The plugin symlink points to a directory that has an extra level of nesting (e.g., `skills/` is inside a subdirectory instead of at the plugin root).
+
+**Diagnose:**
+
+```bash
+# Skills must use SKILL.md subdirectory format at the plugin root
 ls ~/.claude/plugins/himalaya-mcp/skills/
-# Expected: inbox.md  triage.md  digest.md  reply.md  compose.md  attachments.md  help.md
+# Expected: inbox/  triage/  digest/  reply/  compose/  attachments/  search/  manage/  stats/  config/  help/
+
+# Each should contain a SKILL.md file
+ls ~/.claude/plugins/himalaya-mcp/skills/inbox/SKILL.md
 ```
 
 **Fix (Homebrew):**
