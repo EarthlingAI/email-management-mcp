@@ -9,3 +9,8 @@ mcpb/dist/
 coverage/
 .turbo/
 site/
+bin/
+.cargo/
+.crates.toml
+.crates2.json
+config.toml

@@ -49,6 +49,8 @@ export type MessageBody = string;
 export interface HimalayaClientOptions {
   /** Path to himalaya binary (default: "himalaya") */
   binary?: string;
+  /** Path to himalaya config file (--config flag) */
+  configPath?: string;
   /** Account name to use (--account flag) */
   account?: string;
   /** Default folder (default: "INBOX") */

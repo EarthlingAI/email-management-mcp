@@ -10,10 +10,11 @@ import type { HimalayaClientOptions } from "./types.js";
 const execFileAsync = promisify(execFile);
 
 const DEFAULT_OPTIONS: Required<HimalayaClientOptions> = {
-  binary: "himalaya",
-  account: "",
-  folder: "INBOX",
-  timeout: 120_000,
+	binary: "himalaya",
+	configPath: "",
+	account: "",
+	folder: "INBOX",
+	timeout: 120_000,
 };
 
 export class HimalayaClient {
@@ -38,7 +39,12 @@ export class HimalayaClient {
   }): Promise<string> {
     const args: string[] = [];
 
-    // Subcommand first (himalaya v1.1.0 expects flags after subcommand)
+    // Global flags first (before subcommand)
+    if (this.opts.configPath) {
+    	args.push("--config", this.opts.configPath);
+    }
+
+    // Subcommand (himalaya expects subcommand-specific flags after subcommand)
     args.push(...subcommand);
 
     // Subcommand flags
