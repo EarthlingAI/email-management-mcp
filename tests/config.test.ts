@@ -1,4 +1,12 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
+
+// Mock existsSync to prevent local file resolution (bin/himalaya.exe, config.toml)
+// from polluting env-only tests with real filesystem state.
+vi.mock("node:fs", async () => {
+  const actual = await vi.importActual<typeof import("node:fs")>("node:fs");
+  return { ...actual, existsSync: vi.fn(() => false) };
+});
+
 import { loadConfig } from "../src/config.js";
 
 describe("loadConfig", () => {

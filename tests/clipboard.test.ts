@@ -27,7 +27,9 @@ function getToolHandler(server: McpServer, toolName: string) {
   return tool;
 }
 
-describe("Clipboard adapter", () => {
+// Clipboard adapter uses pbcopy (macOS) / xclip (Linux) — not available on Windows.
+// The mock covers execFile but not the platform check in getClipboardCommand().
+describe.skipIf(process.platform === "win32")("Clipboard adapter", () => {
   let server: McpServer;
 
   beforeEach(() => {

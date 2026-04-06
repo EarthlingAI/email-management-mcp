@@ -3,7 +3,7 @@
  * Uses execFile (not exec) to prevent shell injection.
  */
 
-import { execFile } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
 import type { HimalayaClientOptions } from "./types.js";
 
@@ -36,6 +36,7 @@ export class HimalayaClient {
     account?: string;
     timeout?: number;
     cwd?: string;
+    stdin?: string;
   }): Promise<string> {
     const args: string[] = [];
 
@@ -58,6 +59,11 @@ export class HimalayaClient {
 
     const timeout = options?.timeout ?? this.opts.timeout;
 
+    // Use spawn when stdin is needed (execFile doesn't support piping stdin)
+    if (options?.stdin !== undefined) {
+      return this.execWithStdin(args, options.stdin, timeout, options.cwd);
+    }
+
     try {
       const { stdout } = await execFileAsync(this.opts.binary, args, {
         timeout,
@@ -69,6 +75,51 @@ export class HimalayaClient {
     } catch (err: unknown) {
       throw this.wrapError(err);
     }
+  }
+
+  private execWithStdin(args: string[], stdin: string, timeout: number, cwd?: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const child = spawn(this.opts.binary, args, {
+        env: { ...process.env },
+        cwd,
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+
+      let stdout = "";
+      let stderr = "";
+      let settled = false;
+      child.stdout.on("data", (chunk: Buffer) => { stdout += chunk.toString(); });
+      child.stderr.on("data", (chunk: Buffer) => { stderr += chunk.toString(); });
+
+      const timer = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        child.kill();
+        reject(new Error(`Command timed out after ${timeout}ms`));
+      }, timeout);
+
+      child.on("close", (code: number) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        if (code !== 0) {
+          const err = Object.assign(new Error(`Command failed: ${stderr}`), { stderr, code, killed: false });
+          reject(this.wrapError(err));
+        } else {
+          resolve(stdout);
+        }
+      });
+
+      child.on("error", (err: Error) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        reject(this.wrapError(err));
+      });
+
+      child.stdin.write(stdin);
+      child.stdin.end();
+    });
   }
 
   /** List envelopes in a folder. */
@@ -179,13 +230,12 @@ export class HimalayaClient {
     return this.exec(args, { folder: f, account });
   }
 
-  /** Send a template (MML format). */
+  /** Send a template (MML format) via stdin. */
   async sendTemplate(
     template: string,
     account?: string,
   ): Promise<string> {
-    const args = ["template", "send", template];
-    return this.exec(args, { account });
+    return this.exec(["template", "send"], { account, stdin: template });
   }
 
   /** List folders. */

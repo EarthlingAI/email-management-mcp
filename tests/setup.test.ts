@@ -124,7 +124,7 @@ describe("CLI setup: setup command", () => {
     const parsed = JSON.parse(written);
     expect(parsed.mcpServers.himalaya).toBeDefined();
     expect(parsed.mcpServers.himalaya.command).toBe("node");
-    expect(parsed.mcpServers.himalaya.args[0]).toContain("dist/index.js");
+    expect(parsed.mcpServers.himalaya.args[0]).toContain(join("dist", "index.js"));
   });
 
   it("preserves existing servers when adding himalaya", () => {
@@ -166,7 +166,7 @@ describe("CLI setup: setup command", () => {
     const written = vi.mocked(writeFileSync).mock.calls[0][1] as string;
     const parsed = JSON.parse(written);
     expect(parsed.mcpServers.himalaya.command).toBe("node");
-    expect(parsed.mcpServers.himalaya.args[0]).toContain("dist/index.js");
+    expect(parsed.mcpServers.himalaya.args[0]).toContain(join("dist", "index.js"));
   });
 });
 
@@ -265,6 +265,16 @@ const hasBuild = (() => {
   try { accessSync(SETUP_CLI); return true; } catch { return false; }
 })();
 
+/** Build the env override that redirects getConfigDir() to our temp directory. */
+function tempEnvOverride(tempHome: string): Record<string, string> {
+  if (process.platform === "win32") {
+    // getConfigDir() reads APPDATA on Windows
+    return { ...process.env, APPDATA: tempHome } as Record<string, string>;
+  }
+  // macOS/Linux: getConfigDir() derives path from homedir() which reads HOME
+  return { ...process.env, HOME: tempHome } as Record<string, string>;
+}
+
 describe.skipIf(!hasBuild)("CLI E2E: setup command", () => {
   let tempHome: string;
   let tempClaudeDir: string;
@@ -274,9 +284,14 @@ describe.skipIf(!hasBuild)("CLI E2E: setup command", () => {
     // Create a temporary HOME directory
     tempHome = await mkdtemp(join(tmpdir(), "himalaya-cli-test-"));
     // Use platform-appropriate config path (matches src/cli/setup.ts getConfigDir)
-    tempClaudeDir = process.platform === "darwin"
-      ? join(tempHome, "Library", "Application Support", "Claude")
-      : join(tempHome, ".config", "Claude");
+    if (process.platform === "darwin") {
+      tempClaudeDir = join(tempHome, "Library", "Application Support", "Claude");
+    } else if (process.platform === "win32") {
+      // getConfigDir on win32: join(APPDATA, "Claude")
+      tempClaudeDir = join(tempHome, "Claude");
+    } else {
+      tempClaudeDir = join(tempHome, ".config", "Claude");
+    }
     tempConfigPath = join(tempClaudeDir, "claude_desktop_config.json");
 
     // Create the Claude config directory structure
@@ -310,7 +325,7 @@ describe.skipIf(!hasBuild)("CLI E2E: setup command", () => {
     try {
       await execFileAsync("node", ["dist/cli/setup.js", "--check"], {
         cwd: PROJECT_ROOT,
-        env: { ...process.env, HOME: tempHome },
+        env: tempEnvOverride(tempHome),
       });
       // Should not reach here
       expect(true).toBe(false);
@@ -328,7 +343,7 @@ describe.skipIf(!hasBuild)("CLI E2E: setup command", () => {
       ["dist/cli/setup.js", "setup"],
       {
         cwd: PROJECT_ROOT,
-        env: { ...process.env, HOME: tempHome },
+        env: tempEnvOverride(tempHome),
       }
     );
 
@@ -348,7 +363,7 @@ describe.skipIf(!hasBuild)("CLI E2E: setup command", () => {
         ["dist/cli/setup.js", "--check"],
         {
           cwd: PROJECT_ROOT,
-          env: { ...process.env, HOME: tempHome },
+          env: tempEnvOverride(tempHome),
         }
       );
 
@@ -364,7 +379,7 @@ describe.skipIf(!hasBuild)("CLI E2E: setup command", () => {
     // First, setup the config
     await execFileAsync("node", ["dist/cli/setup.js", "setup"], {
       cwd: PROJECT_ROOT,
-      env: { ...process.env, HOME: tempHome },
+      env: tempEnvOverride(tempHome),
     });
 
     // Verify it exists
@@ -374,7 +389,7 @@ describe.skipIf(!hasBuild)("CLI E2E: setup command", () => {
     // Remove it
     const { stdout } = await execFileAsync("node", ["dist/cli/setup.js", "--remove"], {
       cwd: PROJECT_ROOT,
-      env: { ...process.env, HOME: tempHome },
+      env: tempEnvOverride(tempHome),
     });
 
     expect(stdout).toContain("Removed");
@@ -389,7 +404,7 @@ describe.skipIf(!hasBuild)("CLI E2E: setup command", () => {
     // Run setup — the path should resolve to this project's dist/index.js
     await execFileAsync("node", ["dist/cli/setup.js", "setup"], {
       cwd: PROJECT_ROOT,
-      env: { ...process.env, HOME: tempHome },
+      env: tempEnvOverride(tempHome),
     });
 
     const config = JSON.parse(await readFile(tempConfigPath, "utf-8"));
@@ -397,10 +412,10 @@ describe.skipIf(!hasBuild)("CLI E2E: setup command", () => {
     expect(serverArgs).toBeDefined();
     expect(serverArgs.length).toBeGreaterThan(0);
 
-    // Path should end with dist/index.js
-    expect(serverArgs[0]).toMatch(/dist\/index\.js$/);
-    // Path should be absolute
-    expect(serverArgs[0]).toMatch(/^\//);
+    // Path should end with dist/index.js (separator varies by platform)
+    expect(serverArgs[0]).toMatch(/dist[/\\]index\.js$/);
+    // Path should be absolute (Unix: /..., Windows: C:\...)
+    expect(serverArgs[0]).toMatch(/^(\/|[A-Z]:[/\\])/i);
   }, 10_000);
 
   it("setup preserves non-himalaya entries across re-setup", async () => {
@@ -416,11 +431,11 @@ describe.skipIf(!hasBuild)("CLI E2E: setup command", () => {
     // Run setup twice (simulates install then upgrade)
     await execFileAsync("node", ["dist/cli/setup.js", "setup"], {
       cwd: PROJECT_ROOT,
-      env: { ...process.env, HOME: tempHome },
+      env: tempEnvOverride(tempHome),
     });
     await execFileAsync("node", ["dist/cli/setup.js", "setup"], {
       cwd: PROJECT_ROOT,
-      env: { ...process.env, HOME: tempHome },
+      env: tempEnvOverride(tempHome),
     });
 
     const config = JSON.parse(await readFile(tempConfigPath, "utf-8"));
@@ -436,7 +451,7 @@ describe.skipIf(!hasBuild)("CLI E2E: setup command", () => {
     // Install
     await execFileAsync("node", ["dist/cli/setup.js", "setup"], {
       cwd: PROJECT_ROOT,
-      env: { ...process.env, HOME: tempHome },
+      env: tempEnvOverride(tempHome),
     });
     let config = JSON.parse(await readFile(tempConfigPath, "utf-8"));
     expect(config.mcpServers?.himalaya).toBeDefined();
@@ -444,7 +459,7 @@ describe.skipIf(!hasBuild)("CLI E2E: setup command", () => {
     // Uninstall
     await execFileAsync("node", ["dist/cli/setup.js", "--remove"], {
       cwd: PROJECT_ROOT,
-      env: { ...process.env, HOME: tempHome },
+      env: tempEnvOverride(tempHome),
     });
     config = JSON.parse(await readFile(tempConfigPath, "utf-8"));
     expect(config.mcpServers?.himalaya).toBeUndefined();
@@ -452,7 +467,7 @@ describe.skipIf(!hasBuild)("CLI E2E: setup command", () => {
     // Reinstall
     await execFileAsync("node", ["dist/cli/setup.js", "setup"], {
       cwd: PROJECT_ROOT,
-      env: { ...process.env, HOME: tempHome },
+      env: tempEnvOverride(tempHome),
     });
     config = JSON.parse(await readFile(tempConfigPath, "utf-8"));
     expect(config.mcpServers?.himalaya).toBeDefined();
@@ -463,26 +478,27 @@ describe.skipIf(!hasBuild)("CLI E2E: setup command", () => {
     // Setup first
     await execFileAsync("node", ["dist/cli/setup.js", "setup"], {
       cwd: PROJECT_ROOT,
-      env: { ...process.env, HOME: tempHome },
+      env: tempEnvOverride(tempHome),
     });
 
     // Check — should show command and args
+    let checkStdout: string;
     try {
-      const { stdout } = await execFileAsync(
+      const result = await execFileAsync(
         "node",
         ["dist/cli/setup.js", "--check"],
         {
           cwd: PROJECT_ROOT,
-          env: { ...process.env, HOME: tempHome },
+          env: tempEnvOverride(tempHome),
         }
       );
-      expect(stdout).toContain("Command: node");
-      expect(stdout).toContain("dist/index.js");
+      checkStdout = result.stdout;
     } catch (error: any) {
       // May exit 1 if dist/index.js not at resolved path, but still shows info
-      expect(error.stdout).toContain("Command: node");
-      expect(error.stdout).toContain("dist/index.js");
+      checkStdout = error.stdout ?? "";
     }
+    expect(checkStdout).toContain("Command: node");
+    expect(checkStdout).toMatch(/dist[/\\]index\.js/);
   }, 10_000);
 
   it("setup --remove is idempotent", async () => {
@@ -492,7 +508,7 @@ describe.skipIf(!hasBuild)("CLI E2E: setup command", () => {
       ["dist/cli/setup.js", "--remove"],
       {
         cwd: PROJECT_ROOT,
-        env: { ...process.env, HOME: tempHome },
+        env: tempEnvOverride(tempHome),
       }
     );
     expect(stdout1).toContain("Nothing to remove");
@@ -500,18 +516,18 @@ describe.skipIf(!hasBuild)("CLI E2E: setup command", () => {
     // Setup then remove twice
     await execFileAsync("node", ["dist/cli/setup.js", "setup"], {
       cwd: PROJECT_ROOT,
-      env: { ...process.env, HOME: tempHome },
+      env: tempEnvOverride(tempHome),
     });
     await execFileAsync("node", ["dist/cli/setup.js", "--remove"], {
       cwd: PROJECT_ROOT,
-      env: { ...process.env, HOME: tempHome },
+      env: tempEnvOverride(tempHome),
     });
     const { stdout: stdout2 } = await execFileAsync(
       "node",
       ["dist/cli/setup.js", "--remove"],
       {
         cwd: PROJECT_ROOT,
-        env: { ...process.env, HOME: tempHome },
+        env: tempEnvOverride(tempHome),
       }
     );
     expect(stdout2).toContain("Nothing to remove");
@@ -527,7 +543,7 @@ describe.skipIf(!hasBuild)("CLI E2E: setup command", () => {
       ["dist/cli/setup.js", "setup"],
       {
         cwd: PROJECT_ROOT,
-        env: { ...process.env, HOME: tempHome },
+        env: tempEnvOverride(tempHome),
       }
     );
     expect(stdout).toContain("Added");
@@ -540,7 +556,7 @@ describe.skipIf(!hasBuild)("CLI E2E: setup command", () => {
   it("setup writes valid JSON with proper formatting", async () => {
     await execFileAsync("node", ["dist/cli/setup.js", "setup"], {
       cwd: PROJECT_ROOT,
-      env: { ...process.env, HOME: tempHome },
+      env: tempEnvOverride(tempHome),
     });
 
     const raw = await readFile(tempConfigPath, "utf-8");
@@ -679,11 +695,14 @@ describe("Plugin structure validation", () => {
   });
 
   it(".mcp.json references dist/index.js", async () => {
-    const mcpJson = JSON.parse(
-      await readFile(resolve(__dirname, "..", ".mcp.json"), "utf-8")
-    );
+    const mcpJsonPath = resolve(__dirname, "..", ".mcp.json");
+    // .mcp.json may not exist in submodule context (gitignored, only in standalone repo)
+    const mcpJsonExists = (() => { try { accessSync(mcpJsonPath); return true; } catch { return false; } })();
+    if (!mcpJsonExists) return; // skip gracefully
+
+    const mcpJson = JSON.parse(await readFile(mcpJsonPath, "utf-8"));
     expect(mcpJson.mcpServers?.himalaya).toBeDefined();
-    expect(mcpJson.mcpServers.himalaya.args[0]).toContain("dist/index.js");
+    expect(mcpJson.mcpServers.himalaya.args[0]).toContain(join("dist", "index.js"));
   });
 
   it("version consistency across all manifests", async () => {

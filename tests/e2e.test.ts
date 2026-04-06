@@ -131,11 +131,16 @@ function sendNotification(method: string, params?: any) {
   serverProcess.stdin!.write(msg + "\n");
 }
 
-describe("E2E: MCP Server Headless", () => {
+// Headless E2E uses a fake himalaya bash script with chmod +x — requires Unix.
+// On Windows, execFile cannot execute bash scripts (no shebang/PE header).
+const isWindows = process.platform === "win32";
+
+describe.skipIf(isWindows)("E2E: MCP Server Headless", () => {
   beforeAll(async () => {
-    // Build first
+    // Build first (shell: true needed on Windows where npm is npm.cmd)
     await execFileAsync("npm", ["run", "build"], {
       cwd: PROJECT_ROOT,
+      shell: true,
     });
 
     // Create fake himalaya
@@ -794,7 +799,8 @@ echo "NOT_JSON_AT_ALL"
 // E2E: .mcpb Build Pipeline
 // =============================================================================
 
-describe("E2E: MCPB Build Pipeline", () => {
+// MCPB build uses a bash script (scripts/build-mcpb.sh) with MSYS path issues on Windows.
+describe.skipIf(isWindows)("E2E: MCPB Build Pipeline", () => {
   it(
     "npm run build:mcpb produces a valid .mcpb file",
     async () => {
@@ -810,6 +816,7 @@ describe("E2E: MCPB Build Pipeline", () => {
       const { stdout, stderr } = await execFileAsync("npm", ["run", "build:mcpb"], {
         cwd: PROJECT_ROOT,
         timeout: 60_000,
+        shell: true,
       });
 
       const output = stdout + stderr;
@@ -835,7 +842,7 @@ describe("E2E: MCPB Build Pipeline", () => {
       const { stdout: infoOut } = await execFileAsync(
         "npx",
         ["--yes", "@anthropic-ai/mcpb", "info", mcpbFile],
-        { cwd: PROJECT_ROOT, timeout: 30_000 }
+        { cwd: PROJECT_ROOT, timeout: 30_000, shell: true }
       );
 
       expect(infoOut).toContain("himalaya-mcp");
@@ -852,7 +859,7 @@ describe("E2E: MCPB Build Pipeline", () => {
       const { stdout } = await execFileAsync(
         "npx",
         ["--yes", "@anthropic-ai/mcpb", "validate", "mcpb/"],
-        { cwd: PROJECT_ROOT, timeout: 30_000 }
+        { cwd: PROJECT_ROOT, timeout: 30_000, shell: true }
       );
 
       expect(stdout).toContain("validation passes");

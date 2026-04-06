@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { join } from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { HimalayaClient } from "../src/himalaya/client.js";
 import { registerAttachmentTools } from "../src/tools/attachments.js";
@@ -103,7 +104,7 @@ describe("Attachment tools", () => {
       const text = result.content[0].text;
       expect(text).toContain("Downloaded");
       expect(text).toContain("report.pdf");
-      expect(text).toContain("/tmp/himalaya-mcp-test-uuid-1234");
+      expect(text).toContain(join("/tmp", "himalaya-mcp-test-uuid-1234"));
     });
 
     it("calls client.downloadAttachments with correct params", async () => {
@@ -113,7 +114,7 @@ describe("Attachment tools", () => {
       }, {} as any);
 
       expect(client.downloadAttachments).toHaveBeenCalledWith(
-        "42", "/tmp/himalaya-mcp-test-uuid-1234", undefined, undefined
+        "42", join("/tmp", "himalaya-mcp-test-uuid-1234"), undefined, undefined
       );
     });
 
